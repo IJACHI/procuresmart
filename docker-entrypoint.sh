@@ -29,23 +29,28 @@ if [ -z "${DATABASE_URL}" ] && [ -z "${ESPOCRM_DATABASE_HOST}" ]; then
     # Ensure socket symlink exists for unix socket connections
     ln -sf /run/mysqld/mysqld.sock /tmp/mysql.sock 2>/dev/null || true
 
-    # Ensure database and user exist
-    mariadb -e "CREATE DATABASE IF NOT EXISTS espocrm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || true
+    # Ensure database exists and has fresh demo data on every startup
+    echo "Resetting and reseeding database with fresh procurement demo data..."
+    mariadb -e "DROP DATABASE IF EXISTS espocrm; CREATE DATABASE espocrm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || true
     mariadb -e "CREATE USER IF NOT EXISTS 'espocrm'@'localhost' IDENTIFIED BY 'espocrm';" 2>/dev/null || true
     mariadb -e "CREATE USER IF NOT EXISTS 'espocrm'@'127.0.0.1' IDENTIFIED BY 'espocrm';" 2>/dev/null || true
     mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'localhost';" 2>/dev/null || true
     mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'127.0.0.1';" 2>/dev/null || true
     mariadb -e "FLUSH PRIVILEGES;" 2>/dev/null || true
 
-    # Re-seed demo database if demo-seed.sql is present
+    # Re-seed demo database from demo-seed.sql if present, or run PHP seeder
     if [ -f /var/www/html/demo-seed.sql ]; then
-        echo "Reseeding database with fresh procurement demo data..."
-        mariadb espocrm < /var/www/html/demo-seed.sql 2>/dev/null || true
+        echo "Loading pristine demo data from demo-seed.sql..."
+        mariadb espocrm < /var/www/html/demo-seed.sql
+        echo "Demo data loaded successfully!"
+    else
+        echo "demo-seed.sql not found; executing PHP seeder script..."
+        php dev/seed-demo-data.php 2>/dev/null || true
     fi
 
-    # Restore config.php template if config.php is missing
-    if [ ! -f /var/www/html/data/config.php ] && [ -f /var/www/html/data/config.php.template ]; then
-        cp /var/www/html/data/config.php.template /var/www/html/data/config.php
+    # Restore clean config.php template on startup
+    if [ -f /var/www/html/data/config.php.template ]; then
+        cp -f /var/www/html/data/config.php.template /var/www/html/data/config.php
     fi
 else
     # External database configuration (e.g. Render PostgreSQL or external MySQL)
@@ -85,6 +90,11 @@ else
         php bin/command config:set database.dbname "${ESPOCRM_DATABASE_NAME}" >/dev/null 2>&1 || true
         php bin/command config:set database.user "${ESPOCRM_DATABASE_USER}" >/dev/null 2>&1 || true
         php bin/command config:set database.password "${ESPOCRM_DATABASE_PASSWORD}" >/dev/null 2>&1 || true
+
+        if [ "${RESEED_DEMO_DATA}" = "true" ] || [ "${RESEED_DEMO_DATA}" = "1" ]; then
+            echo "Reseeding external database with procurement demo data..."
+            php dev/seed-demo-data.php || true
+        fi
     fi
 fi
 

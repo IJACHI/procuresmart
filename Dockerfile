@@ -42,8 +42,10 @@ RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --opt
 RUN php dev/set-config-params.php \
     && grunt offline \
     && mv /app/build/EspoCRM-* /app/build/dist \
-    && mkdir -p /app/build/dist/dev \
-    && cp dev/seed-demo-data.php /app/build/dist/dev/seed-demo-data.php
+    && mkdir -p /app/build/dist/dev /app/build/dist/bin \
+    && cp dev/seed-demo-data.php /app/build/dist/dev/seed-demo-data.php \
+    && cp bin/reseed /app/build/dist/bin/reseed \
+    && chmod +x /app/build/dist/bin/reseed
 
 # ==========================================
 # Stage 2: Production Apache + MariaDB Runtime

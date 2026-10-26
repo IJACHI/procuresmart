@@ -1,0 +1,18 @@
+#!/bin/bash
+set -e
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+echo "Resetting and reseeding NRS-Procuresmart demo data..."
+
+if [ -f "${DIR}/demo-seed.sql" ]; then
+    mariadb espocrm < "${DIR}/demo-seed.sql"
+    echo "Pristine demo database restored from demo-seed.sql!"
+else
+    php "${DIR}/dev/seed-demo-data.php"
+fi
+
+if [ -f "${DIR}/data/config.php.template" ]; then
+    cp -f "${DIR}/data/config.php.template" "${DIR}/data/config.php"
+fi
+
+echo "NRS-Procuresmart demo data reseeded successfully."
