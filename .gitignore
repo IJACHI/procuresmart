@@ -33,3 +33,6 @@ client/modules/crm/lib/*
 
 .DS_Store
 **/.DS_Store
+
+# Deployment notes and local credentials
+DEPLOYMENT_INFO.md
