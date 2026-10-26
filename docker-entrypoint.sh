@@ -89,8 +89,10 @@ else
 fi
 
 # -------------------------------------------------------------
-# 2. Update siteUrl for Render external domain
+# 2. Update siteUrl and applicationName
 # -------------------------------------------------------------
+php bin/command config:set applicationName "NRS-Procuresmart" >/dev/null 2>&1 || true
+
 if [ -n "${RENDER_EXTERNAL_URL}" ]; then
     php bin/command config:set siteUrl "${RENDER_EXTERNAL_URL}" >/dev/null 2>&1 || true
 elif [ -n "${ESPOCRM_SITE_URL}" ]; then

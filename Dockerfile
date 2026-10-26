@@ -164,6 +164,7 @@ RUN mkdir -p /run/mysqld /var/run/mysqld \
     && php bin/command config:set database.password "espocrm" \
     && php bin/command config:set "defaultPermissions.user" "www-data" \
     && php bin/command config:set "defaultPermissions.group" "www-data" \
+    && php bin/command config:set applicationName "NRS-Procuresmart" \
     && php bin/command rebuild \
     && php bin/command create-admin-user admin \
     && (echo "admin123" | php bin/command setPassword admin) \

@@ -53,7 +53,7 @@ return [
     'recordsPerPageSmall' => 5,
     'recordsPerPageSelect' => 10,
     'recordsPerPageKanban' => 5,
-    'applicationName' => 'EspoCRM',
+    'applicationName' => 'NRS-Procuresmart',
     'version' => '@@version',
     'timeZone' => 'UTC',
     'dateFormat' => 'DD.MM.YYYY',

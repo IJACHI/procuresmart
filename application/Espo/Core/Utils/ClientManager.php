@@ -61,8 +61,8 @@ class ClientManager
 
     private string $nonce;
 
-    private const string APP_DESCRIPTION = "EspoCRM – Open Source CRM application.";
-    private const string APP_NAME = 'EspoCRM';
+    private const string APP_DESCRIPTION = "NRS-Procuresmart – Nigeria Revenue Service Procurement Platform";
+    private const string APP_NAME = 'NRS-Procuresmart';
 
     private const int AJAX_TIMEOUT = 60000;
 
