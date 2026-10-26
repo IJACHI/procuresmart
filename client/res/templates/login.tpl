@@ -6,6 +6,7 @@
                     <img
                         src="{{logoSrc}}"
                         class="logo"
+                        alt="NRS-Procuresmart"
                     >
                 </div>
             </div>

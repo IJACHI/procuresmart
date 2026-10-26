@@ -486,18 +486,28 @@ input.numeric-text {
 
 #login.panel .panel-heading {
     border-bottom-width: 0;
+    text-align: center;
+    padding: var(--28px) var(--20px) var(--16px) var(--20px);
 }
 
 #login .logo-container {
-    width: @login-logo-width;
-    height: @login-logo-height;
-    overflow: hidden;
-    border-top-left-radius: var(--panel-border-radius);
+    width: 100%;
+    height: auto;
+    max-width: 280px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: visible;
 }
 
 #login .logo-container img.logo {
-    max-height: 100%;
+    display: block;
+    height: auto;
+    max-height: 58px;
     max-width: 100%;
+    object-fit: contain;
+    margin: 0 auto;
 }
 
 input.global-search-input {
@@ -823,7 +833,7 @@ input.global-search-input {
 
 #login.panel > .panel-heading {
     background-color: @login-panel-heading-bg;
-    padding: 0;
+    padding: var(--28px) var(--20px) var(--16px) var(--20px);
 }
 
 .list-expanded .list-group > .list-group-item .list-row-buttons button {
