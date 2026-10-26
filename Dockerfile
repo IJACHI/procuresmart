@@ -29,13 +29,11 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
-# Install npm dependencies first for caching
-COPY package*.json ./
-RUN npm ci
-
-# Copy composer files and source tree
-COPY composer*.json ./
+# Copy all project files
 COPY . .
+
+# Install npm dependencies without premature lifecycle scripts
+RUN npm install --ignore-scripts --no-audit --no-fund
 
 # Install PHP dependencies without dev packages
 RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-reqs
