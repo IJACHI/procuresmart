@@ -99,6 +99,11 @@ elif [ -n "${ESPOCRM_SITE_URL}" ]; then
     php bin/command config:set siteUrl "${ESPOCRM_SITE_URL}" >/dev/null 2>&1 || true
 fi
 
+# Clear any stale application/theme cache and rebuild
+echo "Rebuilding metadata and clearing cache..."
+php bin/command clear_cache >/dev/null 2>&1 || true
+php bin/command rebuild >/dev/null 2>&1 || true
+
 # -------------------------------------------------------------
 # 3. Permissions & Start
 # -------------------------------------------------------------
