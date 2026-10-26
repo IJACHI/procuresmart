@@ -4,6 +4,7 @@
 FROM php:8.3-cli-bookworm AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Install build dependencies, PHP build extensions, and Node.js
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -23,8 +24,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && npm install -g grunt-cli \
     && rm -rf /var/lib/apt/lists/*
 
-ENV NODE_OPTIONS="--max-old-space-size=2048"
-
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -41,19 +40,21 @@ COPY . .
 # Install PHP dependencies without dev packages
 RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-reqs
 
-# Set version in config and build frontend assets
+# Set version in config, build frontend assets, and include dev seed script
 RUN php dev/set-config-params.php \
     && grunt offline \
-    && mv /app/build/EspoCRM-* /app/build/dist
+    && mv /app/build/EspoCRM-* /app/build/dist \
+    && mkdir -p /app/build/dist/dev \
+    && cp dev/seed-demo-data.php /app/build/dist/dev/seed-demo-data.php
 
 # ==========================================
-# Stage 2: Production Apache + PHP Runtime
+# Stage 2: Production Apache + MariaDB Runtime
 # ==========================================
 FROM php:8.3-apache-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install runtime dependencies and PHP extensions
+# Install runtime dependencies, PHP extensions, and lightweight MariaDB
 RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     libzip-dev \
@@ -64,6 +65,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-dev \
     libpq-dev \
     libldap2-dev \
+    mariadb-server \
+    mariadb-client \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-configure ldap --with-libdir="lib/$(dpkg-architecture --query DEB_BUILD_MULTIARCH)" \
     && docker-php-ext-install -j$(nproc) \
@@ -79,15 +82,38 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure PHP settings recommended for EspoCRM
+# Configure ultra-low memory settings for MariaDB (fits comfortably in Render 512MB RAM)
+RUN mkdir -p /etc/mysql/mariadb.conf.d && { \
+    echo '[mysqld]'; \
+    echo 'performance_schema = OFF'; \
+    echo 'innodb_buffer_pool_size = 32M'; \
+    echo 'innodb_log_buffer_size = 4M'; \
+    echo 'innodb_log_file_size = 16M'; \
+    echo 'key_buffer_size = 8M'; \
+    echo 'max_connections = 25'; \
+    echo 'skip-name-resolve'; \
+} > /etc/mysql/mariadb.conf.d/99-low-memory.cnf
+
+# Configure Apache prefork MPM for low memory footprint
 RUN { \
-    echo 'memory_limit = 512M'; \
+    echo '<IfModule mpm_prefork_module>'; \
+    echo '    StartServers             2'; \
+    echo '    MinSpareServers          1'; \
+    echo '    MaxSpareServers          3'; \
+    echo '    MaxRequestWorkers        10'; \
+    echo '    MaxConnectionsPerChild   1000'; \
+    echo '</IfModule>'; \
+} > /etc/apache2/mods-available/mpm_prefork.conf
+
+# Configure PHP settings recommended for EspoCRM on Render Free Tier
+RUN { \
+    echo 'memory_limit = 128M'; \
     echo 'max_execution_time = 180'; \
     echo 'post_max_size = 50M'; \
     echo 'upload_max_filesize = 50M'; \
     echo 'date.timezone = UTC'; \
     echo 'opcache.enable = 1'; \
-    echo 'opcache.memory_consumption = 128'; \
+    echo 'opcache.memory_consumption = 64'; \
     echo 'opcache.interned_strings_buffer = 8'; \
     echo 'opcache.max_accelerated_files = 10000'; \
     echo 'opcache.revalidate_freq = 2'; \
@@ -116,7 +142,30 @@ COPY --from=builder /app/build/dist/ /var/www/html/
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Set ownership and permissions
+# Initialize MariaDB and pre-generate database and demo seed dump at build time
+RUN mysqld_safe --skip-syslog & \
+    for i in $(seq 1 30); do mysqladmin ping --silent && break || sleep 1; done \
+    && mariadb -e "CREATE DATABASE IF NOT EXISTS espocrm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" \
+    && mariadb -e "CREATE USER IF NOT EXISTS 'espocrm'@'localhost' IDENTIFIED BY 'espocrm';" \
+    && mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'localhost'; FLUSH PRIVILEGES;" \
+    && php bin/command config:populate \
+    && php bin/command config:set isInstalled true \
+    && php bin/command config:set database.platform "Mysql" \
+    && php bin/command config:set database.host "localhost" \
+    && php bin/command config:set database.dbname "espocrm" \
+    && php bin/command config:set database.user "espocrm" \
+    && php bin/command config:set database.password "espocrm" \
+    && php bin/command config:set "defaultPermissions.user" "www-data" \
+    && php bin/command config:set "defaultPermissions.group" "www-data" \
+    && php bin/command rebuild \
+    && php bin/command create-admin-user admin \
+    && (echo "admin123" | php bin/command setPassword admin) \
+    && php dev/seed-demo-data.php \
+    && mariadb-dump espocrm > /var/www/html/demo-seed.sql \
+    && cp data/config.php /var/www/html/data/config.php.template \
+    && mysqladmin shutdown
+
+# Set directory ownership and permissions
 RUN mkdir -p /var/www/html/data /var/www/html/custom \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
