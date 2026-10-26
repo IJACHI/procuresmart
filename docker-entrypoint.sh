@@ -26,10 +26,16 @@ if [ -z "${DATABASE_URL}" ] && [ -z "${ESPOCRM_DATABASE_HOST}" ]; then
         sleep 1
     done
 
+    # Ensure socket symlink exists for unix socket connections
+    ln -sf /run/mysqld/mysqld.sock /tmp/mysql.sock 2>/dev/null || true
+
     # Ensure database and user exist
     mariadb -e "CREATE DATABASE IF NOT EXISTS espocrm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null || true
     mariadb -e "CREATE USER IF NOT EXISTS 'espocrm'@'localhost' IDENTIFIED BY 'espocrm';" 2>/dev/null || true
-    mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'localhost'; FLUSH PRIVILEGES;" 2>/dev/null || true
+    mariadb -e "CREATE USER IF NOT EXISTS 'espocrm'@'127.0.0.1' IDENTIFIED BY 'espocrm';" 2>/dev/null || true
+    mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'localhost';" 2>/dev/null || true
+    mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'127.0.0.1';" 2>/dev/null || true
+    mariadb -e "FLUSH PRIVILEGES;" 2>/dev/null || true
 
     # Re-seed demo database if demo-seed.sql is present
     if [ -f /var/www/html/demo-seed.sql ]; then

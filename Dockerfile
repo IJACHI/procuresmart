@@ -115,6 +115,8 @@ RUN { \
     echo 'opcache.interned_strings_buffer = 8'; \
     echo 'opcache.max_accelerated_files = 10000'; \
     echo 'opcache.revalidate_freq = 2'; \
+    echo 'pdo_mysql.default_socket = /run/mysqld/mysqld.sock'; \
+    echo 'mysqli.default_socket = /run/mysqld/mysqld.sock'; \
 } > /usr/local/etc/php/conf.d/espocrm.ini
 
 # Configure Apache virtual host with AllowOverride All
@@ -141,15 +143,22 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Initialize MariaDB and pre-generate database and demo seed dump at build time
-RUN mysqld_safe --skip-syslog & \
+RUN mkdir -p /run/mysqld /var/run/mysqld \
+    && chown -R mysql:mysql /run/mysqld /var/run/mysqld \
+    && mysqld_safe --skip-syslog & \
     for i in $(seq 1 30); do mysqladmin ping --silent && break || sleep 1; done \
+    && ln -sf /run/mysqld/mysqld.sock /tmp/mysql.sock \
     && mariadb -e "CREATE DATABASE IF NOT EXISTS espocrm CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" \
     && mariadb -e "CREATE USER IF NOT EXISTS 'espocrm'@'localhost' IDENTIFIED BY 'espocrm';" \
-    && mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'localhost'; FLUSH PRIVILEGES;" \
+    && mariadb -e "CREATE USER IF NOT EXISTS 'espocrm'@'127.0.0.1' IDENTIFIED BY 'espocrm';" \
+    && mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'localhost';" \
+    && mariadb -e "GRANT ALL PRIVILEGES ON espocrm.* TO 'espocrm'@'127.0.0.1';" \
+    && mariadb -e "FLUSH PRIVILEGES;" \
     && php bin/command config:populate \
     && php bin/command config:set isInstalled true \
     && php bin/command config:set database.platform "Mysql" \
-    && php bin/command config:set database.host "localhost" \
+    && php bin/command config:set database.host "127.0.0.1" \
+    && php bin/command config:set database.port 3306 \
     && php bin/command config:set database.dbname "espocrm" \
     && php bin/command config:set database.user "espocrm" \
     && php bin/command config:set database.password "espocrm" \
