@@ -1035,11 +1035,11 @@
         "multiEnum_valid": "Invalid multi-enum value. Values must be one of defined field options."
     },
     "navbarTabs": {
-        "Business": "Business",
-        "Marketing": "Marketing",
-        "Support": "Support",
-        "CRM": "CRM",
-        "Activities": "Activities"
+        "Business": "Tender Documents",
+        "Marketing": "Supplier Drives & Outreach",
+        "Support": "Vendor Inquiries & Guidelines",
+        "CRM": "Procurement",
+        "Activities": "Activities & Calendar"
     },
     "wysiwygLabels": {
         "cell": "Cell",
