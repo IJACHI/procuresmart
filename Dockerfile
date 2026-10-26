@@ -17,11 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfreetype6-dev \
     libxml2-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
-    && docker-php-ext-install -j$(nproc) gd zip xml \
+    && docker-php-ext-install -j$(nproc) gd zip xml exif \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && npm install -g grunt-cli \
     && rm -rf /var/lib/apt/lists/*
+
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -37,7 +39,7 @@ COPY composer*.json ./
 COPY . .
 
 # Install PHP dependencies without dev packages
-RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader
+RUN composer install --no-dev --prefer-dist --no-progress --no-interaction --optimize-autoloader --ignore-platform-reqs
 
 # Set version in config and build frontend assets
 RUN php dev/set-config-params.php \
