@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.vscode
+.DS_Store
+**/.DS_Store
+node_modules
+tests
+upgrades
+build
